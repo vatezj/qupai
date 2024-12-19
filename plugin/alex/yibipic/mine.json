@@ -1,0 +1,23 @@
+{
+    "name": "yibipic",
+    "version": "1.0.0",
+    "type": "mixed",
+    "description": "艺壁之选",
+    "author": [
+        {
+            "name": "alex"
+        }
+    ],
+    "composer": {
+        "require": [],
+        "psr-4": {
+            "Plugin\\Yibipic\\": "src"
+        },
+        "installScript": "Plugin\\Yibipic\\InstallScript",
+        "uninstallScript": "Plugin\\Yibipic\\UninstallScript",
+        "config": "Plugin\\Yibipic\\ConfigProvider"
+    },
+    "package": {
+        "dependencies": []
+    }
+}

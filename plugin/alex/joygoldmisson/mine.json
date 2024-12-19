@@ -1,0 +1,23 @@
+{
+    "name": "joygoldmisson",
+    "version": "1.0.0",
+    "type": "mixed",
+    "description": "趣金派",
+    "author": [
+        {
+            "name": "alex"
+        }
+    ],
+    "composer": {
+        "require": [],
+        "psr-4": {
+            "Plugin\\Joygoldmisson\\": "src"
+        },
+        "installScript": "Plugin\\Joygoldmisson\\InstallScript",
+        "uninstallScript": "Plugin\\Joygoldmisson\\UninstallScript",
+        "config": "Plugin\\Joygoldmisson\\ConfigProvider"
+    },
+    "package": {
+        "dependencies": []
+    }
+}
