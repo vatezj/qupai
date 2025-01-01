@@ -100,7 +100,6 @@ final class MenuController extends AbstractController
         ]));
         return $this->success();
     }
-
     #[Delete(
         path: '/admin/menu',
         operationId: 'menuDelete',

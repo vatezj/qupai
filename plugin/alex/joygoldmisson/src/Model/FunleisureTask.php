@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Plugin\Joygoldmisson\Model;
 
 use Hyperf\DbConnection\Model\Model as MineModel;
+use Plugin\Joygoldmisson\Service\HashidsHelper;
 
 /**
  * @property int $task_id 项目ID
@@ -44,33 +45,67 @@ class FunleisureTask extends MineModel
     /**
      * The attributes that are mass assignable.
      */
-    protected array $fillable = ['task_id','task_step','task_verify', 'task_status', 'task_category', 'task_desc', 'task_name', 'task_tag', 'task_price', 'task_amount', 'task_limited_time', 'task_limited_area', 'task_limited_frequency', 'is_android', 'is_ios', 'created_by', 'created_time', 'updated_by', 'updated_time'];
+    protected array $fillable = ['task_id', 'task_step', 'task_verify', 'task_status', 'task_category', 'task_desc', 'task_name', 'task_tag', 'task_price', 'task_amount', 'task_limited_time', 'task_limited_area', 'task_limited_frequency', 'is_android', 'is_ios', 'created_by', 'created_time', 'updated_by', 'updated_time'];
 
     /**
      * The attributes that should be cast to native types.
      */
     protected array $casts = ['task_id' => 'integer', 'task_status' => 'integer', 'task_category' => 'integer', 'task_price' => 'decimal:2', 'task_amount' => 'integer', 'task_limited_time' => 'integer', 'task_limited_area' => 'integer', 'task_limited_frequency' => 'integer', 'is_android' => 'integer', 'is_ios' => 'integer', 'created_by' => 'integer', 'updated_by' => 'integer'];
 
+
+
+
+    // public function getTaskIdAttribute($value)
+    // {
+
+    //     return HashidsHelper::encode($value);
+    // }
+
+
+    
+    // public function setTaskIdAttribute($value)
+    // {
+    //     $this->attributes['task_id'] = HashidsHelper::decode($value)[0];
+    // }
+
+
     /**
      * 定义 category 关联
      * @return \Hyperf\Database\Model\Relations\hasOne
      */
-    public function category() : \Hyperf\Database\Model\Relations\hasOne
+    public function category(): \Hyperf\Database\Model\Relations\hasOne
     {
         return $this->hasOne(\Plugin\Joygoldmisson\Model\FunleisureTaskCategory::class, 'category_id', 'task_category');
     }
-
-
-
-
 
     /**
      * 定义 user 关联
      * @return \Hyperf\Database\Model\Relations\hasOne
      */
-    public function user() : \Hyperf\Database\Model\Relations\hasOne
+    public function user(): \Hyperf\Database\Model\Relations\hasOne
     {
         return $this->hasOne(\Plugin\Joygoldmisson\Model\FunleisureUser::class, 'user_id', 'created_by');
     }
+
+
+
+
+    // public function getCreatedByAttribute($value)
+    // {
+
+    //     return HashidsHelper::encode($value);
+    // }
+
+
+    // public function setCreatedByAttribute($value)
+    // {
+    //     $this->attributes['created_by'] = HashidsHelper::decode($value)[0];
+    // }
+
+
+
+
+
+
 
 }

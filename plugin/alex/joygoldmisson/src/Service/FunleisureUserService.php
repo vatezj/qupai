@@ -15,7 +15,6 @@ namespace Plugin\Joygoldmisson\Service;
 
 use Plugin\Joygoldmisson\Model\FunleisureUserAccess;
 use Plugin\Joygoldmisson\Model\FunleisureUserAccount;
-use Hashids\Hashids;
 use Plugin\Joygoldmisson\Model\FunleisureUser;
 use App\Service\IService;
 
@@ -46,10 +45,12 @@ final  class FunleisureUserService extends IService implements CheckTokenInterfa
     private string $jwt = 'qupai';
 
     public function __construct(
-
+  
         protected readonly Factory $jwtFactory,
-        protected readonly EventDispatcherInterface $dispatcher
+     
     ) {}
+
+
 
     public function getUserInfo($params)
     {
@@ -61,13 +62,14 @@ final  class FunleisureUserService extends IService implements CheckTokenInterfa
         $user = FunleisureUser::query()->where('phone', $params['phone'])->first();
         if (!$user) {
             //注册一个
-            $hashids = new Hashids('vate96', 6, 'abcdefghijklmnopqrstuvwxyz1234567890');
+          
+           
             $usermodel = new FunleisureUser();
             $usermodel->phone = $params['phone'];
             $usermodel->password = md5('111111');
             $usermodel->avatar = "1111";
             $usermodel->save();
-            $usermodel->invitation_code = $hashids->encode($usermodel->user_id);
+            $usermodel->invitation_code = HashidsHelper::encode($usermodel->user_id);
             $usermodel->update();
             //user表
             if ($params['invitation_code'] == '888888') {
@@ -109,13 +111,13 @@ final  class FunleisureUserService extends IService implements CheckTokenInterfa
         } else {
             $info =   ['id' => $user->user_id];
         }
-        $hashids = new Hashids('vate96', 6, 'abcdefghijklmnopqrstuvwxyz1234567890');
-        $uid = $hashids->encode($info['id']);
+        $uid = HashidsHelper::encode($info['id']);
         $jwt = $this->getJwt();
         return [
             'access_token' => $jwt->builderAccessToken((string) $uid)->toString(),
             'refresh_token' => $jwt->builderRefreshToken((string) $uid)->toString(),
             'expire_at' => (int) $jwt->getConfig('ttl', 0),
+            'uid'=> $uid ,
         ];
     }
 
@@ -151,13 +153,13 @@ final  class FunleisureUserService extends IService implements CheckTokenInterfa
 
 
 
-    public function doRechage($params)
+    public function rechage($params,$uid)
     {
         //目前只支持支付宝
-        $userAcount = FunleisureUserAccount::query()->where('created_by', $params['user_id'])->first();
+        $userAcount = FunleisureUserAccount::query()->where('created_by',$uid)->first();
         $userAcounts = new FunleisureUserAccount();
         if (!$userAcount) {
-            $userAcounts->created_by = $params['user_id'];
+            $userAcounts->created_by = $uid;
             $userAcounts->before_balance = 0;
             $userAcounts->after_balance = $params['amount'];
             $userAcounts->price = $params['amount'];
@@ -166,7 +168,7 @@ final  class FunleisureUserService extends IService implements CheckTokenInterfa
             $userAcounts->type = 1; //1 + 2 -
             $userAcounts->save();
         } else {
-            $userAcounts->created_by = $params['user_id'];
+            $userAcounts->created_by = $uid;
             $userAcounts->before_balance = $userAcount->after_balance;
             $userAcounts->after_balance = $params['amount'] + $userAcount->after_balance;
             $userAcounts->price = $params['amount'];

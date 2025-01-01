@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Plugin\Joygoldmisson\Model;
 use Hyperf\Database\Model\SoftDeletes;
 use Hyperf\DbConnection\Model\Model as MineModel;
+use Plugin\Joygoldmisson\Service\HashidsHelper;
 
 /**
  * @property int $user_id 用户ID
@@ -42,4 +43,20 @@ class FunleisureUser extends MineModel
      * The attributes that should be cast to native types.
      */
     protected array $casts = ['user_id' => 'integer', 'user_status' => 'integer', 'integral' => 'integer', 'balance' => 'decimal:2'];
+
+
+
+    // public function getUserIdAttribute($value)
+    // {
+
+    //     return HashidsHelper::encode($value);
+    // }
+
+
+    // public function setUserIdAttribute($value)
+    // {
+    //     $this->attributes['user_id'] = HashidsHelper::decode($value)[0];
+    // }
+
+
 }

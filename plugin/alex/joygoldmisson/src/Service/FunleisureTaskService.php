@@ -19,20 +19,19 @@ use Plugin\Joygoldmisson\Model\FunleisureTaskJoin;
 use Plugin\Joygoldmisson\Model\FunleisureUserAccount;
 use App\Service\IService;
 use phpDocumentor\Reflection\Types\This;
+use Plugin\Joygoldmisson\Http\Common\TaskCode;
 
 use function Hyperf\Support\retry;
+use Plugin\Joygoldmisson\Http\CurrentUser;
 
 /**
  * 任务表服务类
  */
 class FunleisureTaskService extends IService
 {
-  
 
-    public function __construct( )
-    {
-      
-    }
+
+    public function __construct(private readonly CurrentUser $user) {}
 
 
     public function getTaskList($params)
@@ -41,12 +40,13 @@ class FunleisureTaskService extends IService
             return $query->select('avatar', 'nickname', 'user_id');
         }])->with(['category' => function ($query) {
             return $query->select('category_id', 'category_name', 'category_code');
-        }])->paginate((int)$params['limit']);;
+        }])->paginate((int)$params['size'] | 10);
         return $list;
     }
 
-    public function getTaskInfo($id, $user_id)
+    public function getTaskInfo($id)
     {
+        $id = HashidsHelper::decode($id)[0];
         $list = FunleisureTask::query()->with(['user' => function ($query) {
             return $query->select('avatar', 'nickname', 'user_id');
         }])->with(['category' => function ($query) {
@@ -55,8 +55,9 @@ class FunleisureTaskService extends IService
 
         $findJoin = FunleisureTaskJoin::where([
             ['task_id', '=', $id],
-            ['created_by', '=', $user_id]
+            ['created_by', '=', $this->user->id()]
         ])->first();
+        unset($list['user']['user_id']);
         return ['info' => $list, 'joinInfo' => $findJoin];
     }
 
@@ -118,45 +119,77 @@ class FunleisureTaskService extends IService
             //查询是否参加
             $isJoin = FunleisureTaskJoin::query()->where([
                 ['task_id', '=', $params['task_id']],
-                ['created_by', '=', $params['user_id']]
+                ['created_by', '=', $this->user->id()]
             ])->first();
-            if ($isJoin) {
-                //提交验证
-                $isJoin->join_detail = json_encode($params['verify_data']);
-                $isJoin->join_status = 2;
-                $isJoin->save();
-                return ['code' => 20001, 'msg' => '提交成功，请等待审核'];
-            } else {
-                //查询是否已经满员
-                $allNum = $taskData->task_amount;
-                $num = FunleisureTaskJoin::query()->where('task_id', $params['task_id'])->count();
-                if ($num < $allNum) {
-                    //进行参加
-                    $newJoin = new FunleisureTaskJoin();
-                    $newJoin->task_id = $params['task_id'];
-                    $newJoin->created_by = $params['user_id'];
-                    $newJoin->store_id = $taskData['created_by'];
-                    $newJoin->save();
-                    return ['code' => 20000, 'msg' => '参加成功，尽快提交任务'];
-                }
-                return ['code' => 10002, 'msg' => '任务已经参加完成'];
+            if( $isJoin){
+                return ['code' => TaskCode::SUCCESS, 'msg' => '已经参加该任务'];
             }
+            //查询是否已经满员
+            $allNum = $taskData->task_amount;
+            $num = FunleisureTaskJoin::query()->where('task_id', $params['task_id'])->count();
+            if ($num < $allNum) {
+                //进行参加
+                $newJoin = new FunleisureTaskJoin();
+                $newJoin->task_id = $params['task_id'];
+                $newJoin->created_by = $this->user->id();
+                $newJoin->store_id = $taskData['created_by'];
+                $newJoin->save();
+                return ['code' => 20000, 'msg' => '参加成功，尽快提交任务'];
+            }
+            return ['code' => 10002, 'msg' => '任务已经参加完成'];
         } else {
             return ['code' => 10001, 'msg' => '任务不存在或已删除'];
         }
     }
 
+
+    public function submitTask($params)
+    {
+
+        //查看任务情况
+        $taskData = FunleisureTask::query()->where('task_id', $params['task_id'])->first();
+        if ($taskData) {
+            //查询是否参加
+            $isJoin = FunleisureTaskJoin::query()->where([
+                ['task_id', '=', $params['task_id']],
+                ['created_by', '=', $this->user->id()]
+            ])->first();
+            if(!$isJoin){
+                return ['code' => 30001, 'msg' => '请先报名后再进行操作'];
+            }
+            $isJoin->join_detail = json_encode($params['verify_data']);
+            $isJoin->join_status = 2;
+            $isJoin->save();
+            return ['code' => 20001, 'msg' => '提交成功，请等待审核'];
+        } else {
+            return ['code' => 10001, 'msg' => '任务不存在或已删除'];
+        }
+    }
+
+
+    //发布任务
     public function addTask($params)
     {
-        //查询余额
-        $userAccount = FunleisureUserAccount::query()->orderByDesc('created_time')->where('created_by', $params['user_id'])->first();
+        //查询余额z
+
+        $userAccount = FunleisureUserAccount::query()->orderByDesc('created_time')->where('created_by',  $this->user->id())->first();
         if (!$userAccount) {
-            return false;
+            // return false;
+            return [
+                'code' => 10001,
+                'msg' => '用户不存在'
+            ];
         } else {
-            if ($userAccount->after_balance < $params['task_price'] * $params['task_num']) {
-                return false;
+
+            if ($userAccount->after_balance < ((float)$params['task_price'] * (int)$params['task_num'])) {
+                return [
+                    'code' => 10001,
+                    'msg' => '余额不足'
+                ];
             }
         }
+
+        // return  $userAccount;
         $taskModel = new FunleisureTask();
         $taskModel->is_android = $params['is_android'];
         $taskModel->is_ios = $params['is_ios'];
@@ -171,11 +204,11 @@ class FunleisureTaskService extends IService
         $taskModel->task_limited_frequency = $params['task_limited_frequency'];
         $taskModel->task_limited_area = $params['task_limited_area'];
         $taskModel->task_limited_time = $params['task_limited_time'];
-        $taskModel->created_by = $params['user_id'];
-        $taskModel->save();
+        $taskModel->created_by = $this->user->id();
+        $id = $taskModel->save();
         //扣去余额
         $userAcounts = new FunleisureUserAccount();
-        $userAcounts->created_by = $params['user_id'];
+        $userAcounts->created_by = $this->user->id();
         $userAcounts->before_balance = $userAccount->after_balance;
         $userAcounts->after_balance = $userAccount->after_balance - $params['task_price'] * $params['task_num'];
         $userAcounts->price = $params['task_price'] * $params['task_num'];
@@ -183,18 +216,19 @@ class FunleisureTaskService extends IService
         $userAcounts->code = '20001';
         $userAcounts->type = 1; //1 + 2 -
         $userAcounts->save();
-
-
-        return true;
+        return [
+            'id' => $taskModel->task_id,
+            'msg' => '添加成功'
+        ];
     }
 
 
-    public function  adopt($params)
+    public function adopt($params)
     {
         $ids = $params['ids'];
         $ref = FunleisureTaskJoin::query()
-        ->whereIn('join_id',$ids)
-        ->update(['join_status' => 3]);
+            ->whereIn('join_id', $ids)
+            ->update(['join_status' => 3]);
         if ($ref) {
             //todo 加钱
             $this->addMoeny($ids);
@@ -202,12 +236,13 @@ class FunleisureTaskService extends IService
         return  $ref;
     }
 
-    public function  reject($params)  {
+    public function  reject($params)
+    {
         $ids = $params['ids'];
         $ref = FunleisureTaskJoin::query()
-        ->whereIn('join_id',$ids)
-        ->update(['join_status' => 4,'rejection'=>$params['reason']]);
-       
+            ->whereIn('join_id', $ids)
+            ->update(['join_status' => 4, 'rejection' => $params['reason']]);
+
         return  $ref;
     }
 
@@ -216,7 +251,7 @@ class FunleisureTaskService extends IService
         //目前只支持支付宝
         $arr = FunleisureTaskJoin::query()
             ->with(['task'])
-            ->whereIn('join_id',$ids)->get();
+            ->whereIn('join_id', $ids)->get();
 
         foreach ($arr as $k => $v) {
             $userAcount = FunleisureUserAccount::query()->where('created_by', $v['created_by'])->first();
